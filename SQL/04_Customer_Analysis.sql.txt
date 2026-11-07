@@ -1,0 +1,309 @@
+
+-- =====================================================
+-- PROJECT: Sales Performance Analysis
+-- DATABASE: SalesAnalysisDB
+-- FILE: 04_Customer_Analysis.sql
+-- PURPOSE: Customer Behaviour and Profitability Analysis
+-- =====================================================
+
+USE SalesAnalysisDB;
+
+-- 1. Top 10 Customers by Sales
+SELECT
+    Customer_ID,
+    Customer_Name,
+    COUNT(DISTINCT Order_ID) AS Total_Orders,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit
+FROM SalesData
+GROUP BY Customer_ID, Customer_Name
+ORDER BY Total_Sales DESC
+LIMIT 10;
+
+-- 2. Top 10 Loss-Making Customers
+SELECT
+    Customer_ID,
+    Customer_Name,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Profit) / NULLIF(SUM(Sales), 0) * 100,
+        2
+    ) AS Profit_Margin_Percent
+FROM SalesData
+GROUP BY Customer_ID, Customer_Name
+HAVING SUM(Profit) < 0
+ORDER BY Total_Profit ASC
+LIMIT 10;
+
+-- 3. Customer Segment Analysis
+SELECT
+    Segment,
+    COUNT(DISTINCT Customer_ID) AS Total_Customers,
+    COUNT(DISTINCT Order_ID) AS Total_Orders,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(SUM(Profit) / NULLIF(SUM(Sales), 0) * 100, 2)
+        AS Profit_Margin_Percent
+FROM SalesData
+GROUP BY Segment
+ORDER BY Total_Sales DESC;
+
+-- 4. Average Order Value by Customer Segment
+SELECT
+    Segment,
+    COUNT(DISTINCT Order_ID) AS Total_Orders,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(
+        SUM(Sales) / COUNT(DISTINCT Order_ID), 2
+    ) AS Average_Order_Value
+FROM SalesData
+GROUP BY Segment
+ORDER BY Average_Order_Value DESC;
+
+-- 5. Repeat Customer Analysis
+SELECT
+    Customer_ID,
+    Customer_Name,
+    COUNT(DISTINCT Order_ID) AS Total_Orders,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit
+FROM SalesData
+GROUP BY Customer_ID, Customer_Name
+HAVING COUNT(DISTINCT Order_ID) > 1
+ORDER BY Total_Orders DESC
+LIMIT 10;
+
+-- 6. Customer Profitability Classification
+WITH CustomerProfit AS (
+    SELECT
+        Customer_ID,
+        SUM(Sales) AS Total_Sales,
+        SUM(Profit) AS Total_Profit
+    FROM SalesData
+    GROUP BY Customer_ID
+)
+SELECT
+    CASE
+        WHEN Total_Profit > 0 THEN 'Profitable'
+        ELSE 'Loss-Making'
+    END AS Customer_Status,
+    COUNT(*) AS Total_Customers,
+    ROUND(SUM(Total_Sales), 2) AS Total_Sales,
+    ROUND(SUM(Total_Profit), 2) AS Total_Profit
+FROM CustomerProfit
+GROUP BY Customer_Status;
+
+-- 7. Customer Profitability Percentage
+WITH CustomerProfit AS (
+    SELECT
+        Customer_ID,
+        SUM(Profit) AS Total_Profit
+    FROM SalesData
+    GROUP BY Customer_ID
+)
+SELECT
+    CASE
+        WHEN Total_Profit > 0 THEN 'Profitable'
+        ELSE 'Loss-Making'
+    END AS Customer_Status,
+    COUNT(*) AS Total_Customers,
+    ROUND(
+        COUNT(*) * 100.0 / (SELECT COUNT(*) FROM CustomerProfit),
+        2
+    ) AS Customer_Percentage
+FROM CustomerProfit
+GROUP BY Customer_Status;
+
+-- 8. Customer Sales and Profit Contribution
+WITH CustomerProfit AS (
+    SELECT
+        Customer_ID,
+        SUM(Sales) AS Total_Sales,
+        SUM(Profit) AS Total_Profit
+    FROM SalesData
+    GROUP BY Customer_ID
+),
+CustomerStatus AS (
+    SELECT
+        CASE
+            WHEN Total_Profit > 0 THEN 'Profitable'
+            ELSE 'Loss-Making'
+        END AS Customer_Status,
+        Total_Sales,
+        Total_Profit
+    FROM CustomerProfit
+)
+SELECT
+    Customer_Status,
+    ROUND(SUM(Total_Sales), 2) AS Total_Sales,
+    ROUND(
+        SUM(Total_Sales) /
+        (SELECT SUM(Sales) FROM SalesData) * 100, 2
+    ) AS Sales_Contribution_Percent,
+    ROUND(SUM(Total_Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Total_Profit) /
+        (SELECT SUM(Profit) FROM SalesData) * 100, 2
+    ) AS Profit_Contribution_Percent
+FROM CustomerStatus
+GROUP BY Customer_Status;
+
+-- 9. Top 10 Customers by Profit Margin
+SELECT
+    Customer_ID,
+    Customer_Name,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Profit) / NULLIF(SUM(Sales), 0) * 100,
+        2
+    ) AS Profit_Margin_Percent
+FROM SalesData
+GROUP BY Customer_ID, Customer_Name
+HAVING SUM(Sales) > 0
+ORDER BY Profit_Margin_Percent DESC
+LIMIT 10;
+
+-- 10. Customer Order Frequency and AOV
+SELECT
+    Customer_ID,
+    Customer_Name,
+    COUNT(DISTINCT Order_ID) AS Total_Orders,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Sales) / COUNT(DISTINCT Order_ID), 2
+    ) AS Average_Order_Value
+FROM SalesData
+GROUP BY Customer_ID, Customer_Name
+ORDER BY Total_Orders DESC, Total_Sales DESC
+LIMIT 10;
+
+-- 11. Yearly Customer Growth
+WITH YearlyCustomers AS (
+    SELECT
+        YEAR(Order_Date) AS Sales_Year,
+        COUNT(DISTINCT Customer_ID) AS Total_Customers
+    FROM SalesData
+    GROUP BY YEAR(Order_Date)
+),
+CustomerGrowth AS (
+    SELECT
+        Sales_Year,
+        Total_Customers,
+        LAG(Total_Customers) OVER (
+            ORDER BY Sales_Year
+        ) AS Previous_Year_Customers
+    FROM YearlyCustomers
+)
+SELECT
+    Sales_Year,
+    Total_Customers,
+    Previous_Year_Customers,
+    Total_Customers - Previous_Year_Customers
+        AS Customer_Difference,
+    ROUND(
+        (Total_Customers - Previous_Year_Customers)
+        / NULLIF(Previous_Year_Customers, 0) * 100,
+        2
+    ) AS Customer_Growth_Percent
+FROM CustomerGrowth
+ORDER BY Sales_Year;
+
+-- 12. New vs Returning Customers by Year
+WITH FirstPurchase AS (
+    SELECT
+        Customer_ID,
+        MIN(YEAR(Order_Date)) AS First_Purchase_Year
+    FROM SalesData
+    GROUP BY Customer_ID
+),
+YearlyCustomers AS (
+    SELECT DISTINCT
+        YEAR(Order_Date) AS Sales_Year,
+        Customer_ID
+    FROM SalesData
+)
+SELECT
+    y.Sales_Year,
+    COUNT(DISTINCT y.Customer_ID) AS Total_Customers,
+    COUNT(DISTINCT CASE
+        WHEN f.First_Purchase_Year = y.Sales_Year
+        THEN y.Customer_ID
+    END) AS New_Customers,
+    COUNT(DISTINCT CASE
+        WHEN f.First_Purchase_Year < y.Sales_Year
+        THEN y.Customer_ID
+    END) AS Returning_Customers
+FROM YearlyCustomers y
+JOIN FirstPurchase f
+    ON y.Customer_ID = f.Customer_ID
+GROUP BY y.Sales_Year
+ORDER BY y.Sales_Year;
+
+-- 13. Year-over-Year Customer Retention
+WITH YearlyCustomers AS (
+    SELECT DISTINCT
+        YEAR(Order_Date) AS Sales_Year,
+        Customer_ID
+    FROM SalesData
+),
+Retention AS (
+    SELECT
+        curr.Sales_Year,
+        COUNT(DISTINCT curr.Customer_ID) AS Total_Customers,
+        COUNT(DISTINCT prev.Customer_ID) AS Retained_Customers
+    FROM YearlyCustomers curr
+    LEFT JOIN YearlyCustomers prev
+        ON curr.Customer_ID = prev.Customer_ID
+        AND curr.Sales_Year = prev.Sales_Year + 1
+    GROUP BY curr.Sales_Year
+)
+SELECT
+    Sales_Year,
+    Total_Customers,
+    Retained_Customers,
+    ROUND(
+        Retained_Customers * 100.0 /
+        NULLIF(Total_Customers, 0), 2
+    ) AS Returning_Customer_Share_Percent,
+    ROUND(
+        Retained_Customers * 100.0 /
+        NULLIF(LAG(Total_Customers) OVER (
+            ORDER BY Sales_Year
+        ), 0), 2
+    ) AS Retention_Rate_Percent
+FROM Retention
+ORDER BY Sales_Year;
+
+-- 14. Customer Lifetime Value (Historical)
+SELECT
+    Customer_ID,
+    Customer_Name,
+    COUNT(DISTINCT Order_ID) AS Total_Orders,
+    ROUND(SUM(Sales), 2) AS Lifetime_Sales,
+    ROUND(SUM(Profit), 2) AS Lifetime_Profit,
+    ROUND(
+        SUM(Sales) / COUNT(DISTINCT Order_ID), 2
+    ) AS Average_Order_Value
+FROM SalesData
+GROUP BY Customer_ID, Customer_Name
+ORDER BY Lifetime_Sales DESC
+LIMIT 10;
+
+-- 15. Top 10 Customers by Lifetime Profit
+SELECT
+    Customer_ID,
+    Customer_Name,
+    COUNT(DISTINCT Order_ID) AS Total_Orders,
+    ROUND(SUM(Sales), 2) AS Lifetime_Sales,
+    ROUND(SUM(Profit), 2) AS Lifetime_Profit,
+    ROUND(
+        SUM(Profit) / NULLIF(SUM(Sales), 0) * 100,
+        2
+    ) AS Profit_Margin_Percent
+FROM SalesData
+GROUP BY Customer_ID, Customer_Name
+ORDER BY Lifetime_Profit DESC
+LIMIT 10;

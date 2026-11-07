@@ -1,0 +1,75 @@
+
+-- =====================================================
+-- PROJECT: Sales Performance Analysis
+-- DATABASE: SalesAnalysisDB
+-- FILE: 01_Data_Validation.sql
+-- PURPOSE: Data quality and validation checks
+-- =====================================================
+
+USE SalesAnalysisDB;
+
+-- 1. Total number of records
+SELECT COUNT(*) AS Total_Records
+FROM SalesData;
+
+-- 2. Check table structure
+DESCRIBE SalesData;
+
+-- 3. Check NULL values in important columns
+SELECT
+    SUM(Order_ID IS NULL) AS Null_Order_ID,
+    SUM(Order_Date IS NULL) AS Null_Order_Date,
+    SUM(Ship_Date IS NULL) AS Null_Ship_Date,
+    SUM(Customer_ID IS NULL) AS Null_Customer_ID,
+    SUM(Customer_Name IS NULL) AS Null_Customer_Name,
+    SUM(Region IS NULL) AS Null_Region,
+    SUM(Category IS NULL) AS Null_Category,
+    SUM(Sales IS NULL) AS Null_Sales,
+    SUM(Quantity IS NULL) AS Null_Quantity,
+    SUM(Profit IS NULL) AS Null_Profit
+FROM SalesData;
+
+-- 4. Check duplicate Row_ID values
+SELECT
+    Row_ID,
+    COUNT(*) AS Duplicate_Count
+FROM SalesData
+GROUP BY Row_ID
+HAVING COUNT(*) > 1;
+
+-- 5. Check negative sales
+SELECT COUNT(*) AS Negative_Sales
+FROM SalesData
+WHERE Sales < 0;
+
+-- 6. Check negative profit
+-- Negative profit represents business losses.
+SELECT COUNT(*) AS Negative_Profit
+FROM SalesData
+WHERE Profit < 0;
+
+-- 7. Check invalid quantities
+SELECT COUNT(*) AS Invalid_Quantity
+FROM SalesData
+WHERE Quantity <= 0;
+
+-- 8. Check discounts outside valid range
+SELECT COUNT(*) AS Invalid_Discounts
+FROM SalesData
+WHERE Discount < 0 OR Discount > 0.80;
+
+-- 9. Check shipping dates before order dates
+SELECT COUNT(*) AS Invalid_Ship_Dates
+FROM SalesData
+WHERE Ship_Date < Order_Date;
+
+-- 10. Check missing dates
+SELECT
+    SUM(Order_Date IS NULL) AS Missing_Order_Dates,
+    SUM(Ship_Date IS NULL) AS Missing_Ship_Dates
+FROM SalesData;
+
+-- 11. Check available sales regions
+SELECT DISTINCT Region
+FROM SalesData
+ORDER BY Region;

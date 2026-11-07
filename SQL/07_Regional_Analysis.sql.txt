@@ -1,0 +1,150 @@
+
+-- =====================================================
+-- PROJECT: Sales Performance Analysis
+-- DATABASE: SalesAnalysisDB
+-- FILE: 07_Regional_Analysis.sql
+-- PURPOSE: Regional Sales and Profitability Analysis
+-- =====================================================
+
+USE SalesAnalysisDB;
+
+-- 1. State-wise Sales and Profit Analysis
+SELECT
+    State,
+    COUNT(DISTINCT Order_ID) AS Total_Orders,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Profit) / NULLIF(SUM(Sales), 0) * 100,
+        2
+    ) AS Profit_Margin_Percent
+FROM SalesData
+GROUP BY State
+ORDER BY Total_Sales DESC
+LIMIT 15;
+
+-- 2. City-wise Sales and Profit Analysis
+SELECT
+    City,
+    State,
+    COUNT(DISTINCT Order_ID) AS Total_Orders,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Profit) / NULLIF(SUM(Sales), 0) * 100,
+        2
+    ) AS Profit_Margin_Percent
+FROM SalesData
+GROUP BY City, State
+ORDER BY Total_Sales DESC
+LIMIT 10;
+
+-- 3. Top 10 States by Profit
+SELECT
+    State,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Profit) / NULLIF(SUM(Sales), 0) * 100,
+        2
+    ) AS Profit_Margin_Percent
+FROM SalesData
+GROUP BY State
+ORDER BY Total_Profit DESC
+LIMIT 10;
+
+-- 4. Top 10 Cities by Profit
+SELECT
+    City,
+    State,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Profit) / NULLIF(SUM(Sales), 0) * 100,
+        2
+    ) AS Profit_Margin_Percent
+FROM SalesData
+GROUP BY City, State
+ORDER BY Total_Profit DESC
+LIMIT 10;
+
+-- 5. Sales and Profit by Year and Region
+SELECT
+    YEAR(Order_Date) AS Sales_Year,
+    Region,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Profit) / NULLIF(SUM(Sales), 0) * 100,
+        2
+    ) AS Profit_Margin_Percent,
+    COUNT(DISTINCT Order_ID) AS Total_Orders
+FROM SalesData
+GROUP BY YEAR(Order_Date), Region
+ORDER BY Sales_Year, Region;
+
+-- 6. Regional Year-over-Year Sales Growth
+WITH RegionalSales AS (
+    SELECT
+        YEAR(Order_Date) AS Sales_Year,
+        Region,
+        SUM(Sales) AS Total_Sales
+    FROM SalesData
+    GROUP BY YEAR(Order_Date), Region
+),
+RegionalGrowth AS (
+    SELECT
+        Sales_Year,
+        Region,
+        Total_Sales,
+        LAG(Total_Sales) OVER (
+            PARTITION BY Region
+            ORDER BY Sales_Year
+        ) AS Previous_Year_Sales
+    FROM RegionalSales
+)
+SELECT
+    Sales_Year,
+    Region,
+    ROUND(Total_Sales, 2) AS Total_Sales,
+    ROUND(Previous_Year_Sales, 2) AS Previous_Year_Sales,
+    ROUND(
+        (Total_Sales - Previous_Year_Sales)
+        / NULLIF(Previous_Year_Sales, 0) * 100,
+        2
+    ) AS YoY_Sales_Growth_Percent
+FROM RegionalGrowth
+ORDER BY Region, Sales_Year;
+
+-- 7. Regional Year-over-Year Profit Growth
+WITH RegionalProfit AS (
+    SELECT
+        YEAR(Order_Date) AS Sales_Year,
+        Region,
+        SUM(Profit) AS Total_Profit
+    FROM SalesData
+    GROUP BY YEAR(Order_Date), Region
+),
+RegionalGrowth AS (
+    SELECT
+        Sales_Year,
+        Region,
+        Total_Profit,
+        LAG(Total_Profit) OVER (
+            PARTITION BY Region
+            ORDER BY Sales_Year
+        ) AS Previous_Year_Profit
+    FROM RegionalProfit
+)
+SELECT
+    Sales_Year,
+    Region,
+    ROUND(Total_Profit, 2) AS Total_Profit,
+    ROUND(Previous_Year_Profit, 2) AS Previous_Year_Profit,
+    ROUND(
+        (Total_Profit - Previous_Year_Profit)
+        / NULLIF(ABS(Previous_Year_Profit), 0) * 100,
+        2
+    ) AS YoY_Profit_Growth_Percent
+FROM RegionalGrowth
+ORDER BY Region, Sales_Year;

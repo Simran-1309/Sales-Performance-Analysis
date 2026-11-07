@@ -1,0 +1,91 @@
+
+-- =====================================================
+-- PROJECT: Sales Performance Analysis
+-- DATABASE: SalesAnalysisDB
+-- FILE: 05_Product_Analysis.sql
+-- PURPOSE: Product Performance and Profitability
+-- =====================================================
+
+USE SalesAnalysisDB;
+
+-- 1. Sales and Profit by Category
+SELECT
+    Category,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    SUM(Quantity) AS Total_Quantity
+FROM SalesData
+GROUP BY Category
+ORDER BY Total_Sales DESC;
+
+-- 2. Sales and Profit by Sub-Category
+SELECT
+    Sub_Category,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    SUM(Quantity) AS Total_Quantity
+FROM SalesData
+GROUP BY Sub_Category
+ORDER BY Total_Sales DESC;
+
+-- 3. Average Discount by Sub-Category
+SELECT
+    Sub_Category,
+    ROUND(AVG(Discount) * 100, 2) AS Average_Discount_Percent,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit
+FROM SalesData
+GROUP BY Sub_Category
+ORDER BY Average_Discount_Percent DESC;
+
+-- 4. Top 10 Products by Sales
+SELECT
+    Product_ID,
+    Product_Name,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    SUM(Quantity) AS Total_Quantity
+FROM SalesData
+GROUP BY Product_ID, Product_Name
+ORDER BY Total_Sales DESC
+LIMIT 10;
+
+-- 5. 10 Least Profitable Products
+SELECT
+    Product_ID,
+    Product_Name,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    SUM(Quantity) AS Total_Quantity
+FROM SalesData
+GROUP BY Product_ID, Product_Name
+ORDER BY Total_Profit ASC
+LIMIT 10;
+
+-- 6. Product Profitability by Region and Category
+SELECT
+    Region,
+    Category,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Profit) / NULLIF(SUM(Sales), 0) * 100,
+        2
+    ) AS Profit_Margin_Percent
+FROM SalesData
+GROUP BY Region, Category
+ORDER BY Region, Total_Profit DESC;
+
+-- 7. Product Profitability by Region and Sub-Category
+SELECT
+    Region,
+    Sub_Category,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Profit) / NULLIF(SUM(Sales), 0) * 100,
+        2
+    ) AS Profit_Margin_Percent
+FROM SalesData
+GROUP BY Region, Sub_Category
+ORDER BY Region, Total_Profit ASC;

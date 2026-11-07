@@ -1,0 +1,101 @@
+
+-- =====================================================
+-- PROJECT: Sales Performance Analysis
+-- DATABASE: SalesAnalysisDB
+-- FILE: 03_Sales_Trend_Analysis.sql
+-- PURPOSE: Monthly, Quarterly and Yearly Sales Trends
+-- =====================================================
+
+USE SalesAnalysisDB;
+
+-- 1. Monthly Sales and Profit Trend
+SELECT
+    YEAR(Order_Date) AS Sales_Year,
+    MONTH(Order_Date) AS Sales_Month,
+    MONTHNAME(Order_Date) AS Month_Name,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    COUNT(DISTINCT Order_ID) AS Total_Orders
+FROM SalesData
+GROUP BY
+    YEAR(Order_Date),
+    MONTH(Order_Date),
+    MONTHNAME(Order_Date)
+ORDER BY Sales_Year, Sales_Month;
+
+-- 2. Yearly Sales and Profit Trend
+SELECT
+    YEAR(Order_Date) AS Sales_Year,
+    ROUND(SUM(Sales), 2) AS Annual_Sales,
+    ROUND(SUM(Profit), 2) AS Annual_Profit
+FROM SalesData
+GROUP BY YEAR(Order_Date)
+ORDER BY Sales_Year;
+
+-- 3. Year-over-Year Sales Growth
+WITH YearlySales AS (
+    SELECT
+        YEAR(Order_Date) AS Sales_Year,
+        SUM(Sales) AS Total_Sales
+    FROM SalesData
+    GROUP BY YEAR(Order_Date)
+),
+Growth AS (
+    SELECT
+        Sales_Year,
+        Total_Sales,
+        LAG(Total_Sales) OVER (
+            ORDER BY Sales_Year
+        ) AS Previous_Year_Sales
+    FROM YearlySales
+)
+SELECT
+    Sales_Year,
+    ROUND(Total_Sales, 2) AS Total_Sales,
+    ROUND(Previous_Year_Sales, 2) AS Previous_Year_Sales,
+    ROUND(
+        (Total_Sales - Previous_Year_Sales)
+        / NULLIF(Previous_Year_Sales, 0) * 100,
+        2
+    ) AS YoY_Growth_Percent
+FROM Growth
+ORDER BY Sales_Year;
+
+-- 4. Monthly Profit Trend
+SELECT
+    YEAR(Order_Date) AS Sales_Year,
+    MONTH(Order_Date) AS Sales_Month,
+    MONTHNAME(Order_Date) AS Month_Name,
+    ROUND(SUM(Profit), 2) AS Monthly_Profit
+FROM SalesData
+GROUP BY
+    YEAR(Order_Date),
+    MONTH(Order_Date),
+    MONTHNAME(Order_Date)
+ORDER BY Sales_Year, Sales_Month;
+
+-- 5. Quarterly Sales and Profit Analysis
+SELECT
+    YEAR(Order_Date) AS Sales_Year,
+    QUARTER(Order_Date) AS Sales_Quarter,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    COUNT(DISTINCT Order_ID) AS Total_Orders
+FROM SalesData
+GROUP BY
+    YEAR(Order_Date),
+    QUARTER(Order_Date)
+ORDER BY Sales_Year, Sales_Quarter;
+
+-- 6. Yearly Profit Margin
+SELECT
+    YEAR(Order_Date) AS Sales_Year,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(
+        SUM(Profit) / NULLIF(SUM(Sales), 0) * 100,
+        2
+    ) AS Profit_Margin_Percent
+FROM SalesData
+GROUP BY YEAR(Order_Date)
+ORDER BY Sales_Year;
